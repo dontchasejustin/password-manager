@@ -2,6 +2,7 @@
 A password manager app allowing user to enter, save, and retrieve login information for various sites.
 
 Development goals:
+- Read, write, and update JSON data
 - Handle exceptions causes by user entry errors
 - Search file to retrieve login details
 - Set a file path as a constant at the top of the program
