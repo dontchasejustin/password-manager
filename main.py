@@ -3,10 +3,12 @@ from tkinter import messagebox
 import random
 import pyperclip
 from character_lists import letters, symbols, numbers
+import json
+
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 # TODO: Save file in a secure location on computer
-# TODO: Test saved file for identical site and login details, replace with new password
+# TODO: Address overwriting problem - if site already has a login, only replace password if login matches
 
 
 def generate_password():
@@ -32,6 +34,7 @@ def generate_password():
     password_entry.delete(0, 'end')
     password_entry.insert(0, new_password)
     pyperclip.copy(new_password)
+    # messagebox.showinfo(title='Password Copied', message='Your password has been copied to the clipboard!')
 
 
 def save_password():
@@ -39,25 +42,82 @@ def save_password():
     confirmation, wiping the site and password so user can immediately enter new details.
 
     Has popup warnings for missing data and for user confirmation."""
+
+    # Pull user info from entry forms and format into a dictionary
     site = website_entry.get()
     login = username_entry.get()
     pw = password_entry.get()
+    new_data = {
+        site: {
+            'email': login,
+            'password': pw,
+        }
+    }
 
     if len(site) == 0 or len(login) == 0 or len(pw) == 0:  # Verify fields are populated
         messagebox.showwarning(title='Oops!', message='Please don"t leave any fields empty!')
-    else:  # Ask for confirmation.
-        is_ok = messagebox.askokcancel(title=site, message=f'These are the details entered: \n\n'
-                                                           f'Website: {site} \n'
-                                                           f'Email/Login: {login} \n'
-                                                           f'Password: {pw} \n\n'
-                                                           f'Is it OK to save?')
-        if is_ok:  # Do nothing if cancelled, save pw and reset fields if OK
+    else:  # Delete site and password, update file
+
+        try:
+            # Try to open JSON file
+            with open('data.json', 'r') as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            # Create file if it does not exist
+            with open('data.json', 'w') as file:
+                json.dump(new_data, file, indent=4)
+        else:
+            # Update JSON file if it existed
+            data.update(new_data)
+
+            with open('data.json', 'w') as file:
+                json.dump(data, file, indent=4)
+        finally:
+            # Delete entry fields in app
             website_entry.delete(0, 'end')
             password_entry.delete(0, 'end')
-            login_details = f'{site}  |  {login}  |  {pw}\n'
+            messagebox.showinfo(title='Success!', message='Login data saved successfully.')
 
-            with open('data.txt', 'a') as file:
-                file.write(login_details)
+
+# noinspection PyUnboundLocalVariable
+def find_password():
+    """Searches JSON file for login details of a specific site. Handles potential issues (no file exists, no website
+    entered, no matching websites, and creates a messagebox detailing the outcome of the search."""
+
+    try:
+        # Try to open data file and save to python dictionary
+        with open('data.json', 'r') as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        # Inform user if the file is not found
+        messagebox.showerror(title='File Not Found', message='No data file was found. Please add your login details '
+                                                             'to create a file.')
+    else:
+        # Try to retrieve user login details if file is found
+
+        try:
+            # Access site name and pull details for site
+            site = website_entry.get()
+            login_details = data[site]
+            email = login_details['email']
+            pw = login_details['password']
+        except KeyError:
+            # If dictionary key does not exist, inform user of the cause
+            if len(site) == 0:
+                # Blank string
+                messagebox.showwarning(title='No Site Entered', message=f'No site was entered. Please enter a website '
+                                                                        f'and try again.')
+            else:
+                # No match
+                messagebox.showwarning(title='Missing Login Details', message=f'No login details for "{site}" exist. '
+                                                                              f'Please check the details you have '
+                                                                              f'entered.')
+        else:
+            # Show user login details and copy password to clipboard
+            pyperclip.copy(pw)
+            messagebox.showinfo(title=f'{site.upper()} Login Details',
+                                message=f'Login: {email} \nPassword: {pw} \n\n'
+                                        f'Your password has been copied to the clipboard!')
 
 
 # ---------------------------- UI SETUP ------------------------------- #
@@ -76,15 +136,18 @@ canvas.grid(row=0, column=1)
 website = Label(text='Website:')
 website.grid(row=1, column=0)
 
-website_entry = Entry(width=51)
+website_entry = Entry(width=33)
 website_entry.focus()
-website_entry.grid(row=1, column=1, columnspan=2, pady=3)
+website_entry.grid(row=1, column=1, columnspan=1, pady=3)
+
+search = Button(text='Search', width=14, command=find_password)
+search.grid(row=1, column=2)
 
 # Row 2
 username = Label(text='Email/Username:')
 username.grid(row=2, column=0)
 
-username_entry = Entry(width=51)
+username_entry = Entry(width=52)
 username_entry.insert(0, 'jchase466@gmail.com')
 username_entry.grid(row=2, column=1, columnspan=2, pady=3)
 
