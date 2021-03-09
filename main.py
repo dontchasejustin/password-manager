@@ -3,10 +3,13 @@ from tkinter import messagebox
 import random
 import pyperclip
 from character_lists import letters, symbols, numbers
+import json
+
 
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 # TODO: Save file in a secure location on computer
 # TODO: Test saved file for identical site and login details, replace with new password
+# TODO: Address overwriting problem - if site already has a login, only replace password if login matches
 
 
 def generate_password():
@@ -42,22 +45,35 @@ def save_password():
     site = website_entry.get()
     login = username_entry.get()
     pw = password_entry.get()
+    new_data = {
+        site: {
+            'email': login,
+            'password': pw,
+        }
+    }
 
     if len(site) == 0 or len(login) == 0 or len(pw) == 0:  # Verify fields are populated
         messagebox.showwarning(title='Oops!', message='Please don"t leave any fields empty!')
-    else:  # Ask for confirmation.
-        is_ok = messagebox.askokcancel(title=site, message=f'These are the details entered: \n\n'
-                                                           f'Website: {site} \n'
-                                                           f'Email/Login: {login} \n'
-                                                           f'Password: {pw} \n\n'
-                                                           f'Is it OK to save?')
-        if is_ok:  # Do nothing if cancelled, save pw and reset fields if OK
+    else:  # Delete site and password, update file
+
+        try:
+            # Try to open JSON file
+            with open('data.json', 'r') as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            # Create file if it does not exist
+            with open('data.json', 'w') as file:
+                json.dump(new_data, file, indent=4)
+        else:
+            # Update JSON file if it existed
+            data.update(new_data)
+
+            with open('data.json', 'w') as file:
+                json.dump(data, file, indent=4)
+        finally:
+            # Delete entry fields in app
             website_entry.delete(0, 'end')
             password_entry.delete(0, 'end')
-            login_details = f'{site}  |  {login}  |  {pw}\n'
-
-            with open('data.txt', 'a') as file:
-                file.write(login_details)
 
 
 # ---------------------------- UI SETUP ------------------------------- #
@@ -76,7 +92,7 @@ canvas.grid(row=0, column=1)
 website = Label(text='Website:')
 website.grid(row=1, column=0)
 
-website_entry = Entry(width=51)
+website_entry = Entry(width=53)
 website_entry.focus()
 website_entry.grid(row=1, column=1, columnspan=2, pady=3)
 
@@ -84,7 +100,7 @@ website_entry.grid(row=1, column=1, columnspan=2, pady=3)
 username = Label(text='Email/Username:')
 username.grid(row=2, column=0)
 
-username_entry = Entry(width=51)
+username_entry = Entry(width=53)
 username_entry.insert(0, 'jchase466@gmail.com')
 username_entry.grid(row=2, column=1, columnspan=2, pady=3)
 
@@ -92,7 +108,7 @@ username_entry.grid(row=2, column=1, columnspan=2, pady=3)
 password = Label(text='Password:')
 password.grid(row=3, column=0)
 
-password_entry = Entry(width=33)
+password_entry = Entry(width=34)
 password_entry.grid(row=3, column=1, columnspan=1)
 
 generate = Button(text='Generate Password', width=14, command=generate_password)
